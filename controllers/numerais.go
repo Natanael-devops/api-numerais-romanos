@@ -2,18 +2,13 @@ package controllers
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/Natanael-devops/api-numerais-romanos/database"
 	"github.com/Natanael-devops/api-numerais-romanos/models"
 	"github.com/gin-gonic/gin"
 )
-
-var novoSlice = []string{}
-var sliceNumeral = []int{}
 
 //criei o mapa que guarda a informação de cada numeral romano.
 var numero = map[string]int{
@@ -69,7 +64,97 @@ func NovoRomano() *Romano {
 	return &Romano{}
 }
 
+func CriaPalavra(c *gin.Context) {
+	//função para criar a palavra no banco de dados
+	var palavranova models.Numero
+	if err := c.BindJSON(&palavranova); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error()})
+		return
+	}
+
+	fmt.Println(palavranova.Text)
+	pfiltrada := VerificaPalavra(palavranova.Text)
+	q := FazSlice(pfiltrada)
+
+	r := CalculaMaior(q)
+	//rr := strconv.Itoa(r)
+	s := NovoRomano().ToRoman(r)
+
+	//number := c.PostForm(s)
+	//value := c.PostForm(rr)
+
+	palavranova.Number = s
+	palavranova.Value = r
+	database.DB.Create(&palavranova)
+	c.JSON(200, palavranova)
+	//gin.H{
+
+	//"number": palavranova.Number,
+	//"value":  palavranova.Value,
+	//}
+}
+
+func VerificaPalavra(p string) []string {
+	var novoSlice = []string{}
+	palavra := strings.ToUpper(p)
+	numerais := "IVXLCDM"
+	for i := 0; i < len(palavra); i++ {
+
+		if strings.Contains(numerais, string(palavra[i])) {
+			if i > 0 && !strings.Contains(numerais, string(palavra[i-1])) {
+				novoSlice = append(novoSlice, string(palavra[i]))
+			}
+
+			//for 2
+			for n := i + 1; n < len(palavra); n++ {
+				if strings.Contains(numerais, string(palavra[n])) && numero[string(palavra[i])]+numero[string(palavra[n])] > numero[string(palavra[i])] {
+					if i > 0 && !strings.Contains(numerais, string(palavra[i-1])) {
+						novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n]))
+					}
+
+					//for 3
+					for o := n + 1; o < len(palavra); o++ {
+						if strings.Contains(numerais, string(palavra[o])) && numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])] > numero[string(palavra[i])]+numero[string(palavra[n])] {
+
+							if i > 0 && !strings.Contains(numerais, string(palavra[i-1])) {
+								novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n])+string(palavra[o]))
+							}
+
+							for p := o + 1; p < len(palavra); p++ {
+								if strings.Contains(numerais, string(palavra[p])) && numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])]+numero[string(palavra[p])] > numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])] {
+
+									if i > 0 && !strings.Contains(numerais, string(palavra[i-1])) {
+										novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n])+string(palavra[o])+string(palavra[p]))
+									}
+								} else {
+									break
+								}
+							}
+
+						} else {
+							break
+						}
+						if strings.Contains(numerais, string(palavra[o])) && numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])] < numero[string(palavra[i])]+numero[string(palavra[n])] {
+							novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n]))
+						}
+					}
+				} else {
+
+					break
+				}
+				if strings.Contains(numerais, string(palavra[n])) && numero[string(palavra[i])]+numero[string(palavra[n])] < numero[string(palavra[i])] {
+					novoSlice = append(novoSlice, string(palavra[i]))
+				}
+			}
+		}
+	}
+	fmt.Println(novoSlice)
+	return novoSlice
+}
+
 func FazSlice(n []string) []int {
+	var sliceNumeral = []int{}
 	for i := 0; i < len(n); i++ {
 		r := NovoRomano()
 		v := r.Arabe(n[i])
@@ -81,70 +166,6 @@ func FazSlice(n []string) []int {
 	return sliceNumeral
 }
 
-func CriaPalavra(c *gin.Context) {
-	//função para criar a palavra no banco de dados
-	var palavranova models.Numero
-	if err := c.ShouldBindJSON(&palavranova); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error()})
-		return
-	}
-	dadosbytes, _ := ioutil.ReadAll(c.Request.Body)
-	p := string(dadosbytes)
-	pfiltrada := VerificaPalavra(p)
-	q := FazSlice(pfiltrada)
-	r := CalculaMaior(q)
-	rr := strconv.Itoa(r)
-	s := NovoRomano().ToRoman(r)
-
-	number := c.PostForm(s)
-	value := c.PostForm(rr)
-
-	palavranova.Number = s
-	palavranova.Value = r
-
-	database.DB.Create(&palavranova)
-	c.JSON(200, gin.H{
-		"number": number,
-		"value":  value,
-	})
-}
-
-func VerificaPalavra(p string) []string {
-	palavra := strings.ToUpper(p)
-	numerais := "IVXLCDM"
-	for i := 0; i < len(palavra); i++ {
-
-		if strings.Contains(numerais, string(palavra[i])) {
-			//for 2
-			for n := i + 1; n < len(palavra); n++ {
-				if strings.Contains(numerais, string(palavra[n])) && numero[string(palavra[i])]+numero[string(palavra[n])] > numero[string(palavra[i])] {
-					novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n]))
-					//for 3
-					for o := n + 1; o < len(palavra); o++ {
-						if strings.Contains(numerais, string(palavra[o])) && numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])] > numero[string(palavra[i])]+numero[string(palavra[n])] {
-
-							novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n])+string(palavra[o]))
-						} else {
-							break
-						}
-						if strings.Contains(numerais, string(palavra[o])) && numero[string(palavra[i])]+numero[string(palavra[n])]+numero[string(palavra[o])] < numero[string(palavra[i])]+numero[string(palavra[n])] {
-							novoSlice = append(novoSlice, string(palavra[i])+string(palavra[n]))
-						}
-					}
-				} else {
-					break
-				}
-				if strings.Contains(numerais, string(palavra[n])) && numero[string(palavra[i])]+numero[string(palavra[n])] < numero[string(palavra[i])] {
-					novoSlice = append(novoSlice, string(palavra[i]))
-				}
-
-			}
-		}
-	}
-
-	return novoSlice
-}
 func CalculaMaior(c []int) int {
 	if len(c) == 0 {
 		c = append(c, 0)
