@@ -10,7 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//criei o mapa que guarda a informação de cada numeral romano.
+//EXPLICAÇÃO
+/*
+A função CriaPalavra recebe o body request e chama a
+função VerificaPalavra para selecionar os algarismos romanos,
+depois é chamada a função FazSlice que transforma os algarismos romanos em um slice
+de algarismos arábicos.
+Depois a função CalculaMaior vai calcular qual é o maior algarismo da slice.
+Por fim, a função ToRoman apenas reescreve o mesmo valor final para numerais romanos
+e assim a função CriaPalavra termina retornando o body request reescrito.*/
+
 var numero = map[string]int{
 	"I": 1,
 	"V": 5,
@@ -78,21 +87,12 @@ func CriaPalavra(c *gin.Context) {
 	q := FazSlice(pfiltrada)
 
 	r := CalculaMaior(q)
-	//rr := strconv.Itoa(r)
 	s := NovoRomano().ToRoman(r)
-
-	//number := c.PostForm(s)
-	//value := c.PostForm(rr)
 
 	palavranova.Number = s
 	palavranova.Value = r
 	database.DB.Create(&palavranova)
 	c.JSON(200, palavranova)
-	//gin.H{
-
-	//"number": palavranova.Number,
-	//"value":  palavranova.Value,
-	//}
 }
 
 func VerificaPalavra(p string) []string {
